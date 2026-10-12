@@ -1,0 +1,50 @@
+# Deploy from the manager (vm2) after Docker is installed on vm2 and vm3,
+# images are built on both nodes, and vm3 has joined the swarm:
+#
+#   docker stack deploy -c swarm/stack.yml lab --resolve-image never
+#
+# Routing mesh: publish once, hit either Linux host, Swarm picks a replica.
+# One web + one api task per node. Data is the static list inside the API.
+
+services:
+  api:
+    image: docker-lab-api:latest
+    environment:
+      INSTANCE: "api-{{.Task.Slot}}@{{.Node.Hostname}}"
+    networks:
+      - mesh
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: ingress
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+
+  web:
+    image: docker-lab-web:latest
+    environment:
+      SITE_NAME: "web-{{.Task.Slot}}@{{.Node.Hostname}}"
+      API_URL: http://api:8080
+    networks:
+      - mesh
+    ports:
+      - target: 3000
+        published: 80
+        protocol: tcp
+        mode: ingress
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  mesh:
+    driver: overlay
+    attachable: true

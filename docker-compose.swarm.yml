@@ -1,0 +1,72 @@
+name: docker-lab-swarm
+
+# Three empty Linux hosts. You SSH/PuTTY in, then install Docker,
+# join Swarm, deploy the stack, and put nginx on vm1.
+# Guide: swarm/README.md
+#
+#   vm1 = nginx (incoming traffic)
+#   vm2 = Swarm manager, app node
+#   vm3 = Swarm worker, app node
+
+services:
+  vm1:
+    build: ./prod-host
+    image: docker-lab-linux
+    container_name: vm1
+    hostname: vm1
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    ports:
+      - "2222:22"
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - vm1-docker-data:/var/lib/docker
+    restart: unless-stopped
+
+  vm2:
+    build: ./prod-host
+    image: docker-lab-linux
+    container_name: vm2
+    hostname: vm2
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    ports:
+      - "2223:22"
+      - "82:80"
+      - "8082:8080"
+    volumes:
+      - vm2-docker-data:/var/lib/docker
+    restart: unless-stopped
+
+  vm3:
+    build: ./prod-host
+    image: docker-lab-linux
+    container_name: vm3
+    hostname: vm3
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    ports:
+      - "2224:22"
+      - "81:80"
+      - "8081:8080"
+    volumes:
+      - vm3-docker-data:/var/lib/docker
+    restart: unless-stopped
+
+volumes:
+  vm1-docker-data:
+  vm2-docker-data:
+  vm3-docker-data:

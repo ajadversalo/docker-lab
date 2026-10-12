@@ -1,0 +1,29 @@
+# Optional single Linux host. Do not run this while vm1/vm2/vm3 are up.
+name: docker-lab-host
+
+services:
+  prod:
+    build: ./prod-host
+    image: docker-lab-linux
+    container_name: prod
+    hostname: prod
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    ports:
+      - "2222:22"
+      - "80:80"
+      - "3000:3000"
+      - "3001:3001"
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - .:/opt/docker-lab
+      - prod-docker-data:/var/lib/docker
+    restart: unless-stopped
+
+volumes:
+  prod-docker-data:
