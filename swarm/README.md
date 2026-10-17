@@ -40,7 +40,7 @@ No database and no Redis. The API serves a hardcoded list. The page badge shows 
 Docker Desktop must be running.
 
 ```powershell
-cd C:\repos\GrokLessons\docker-lab
+cd C:\repos\docker-lab
 .\swarm\up.ps1
 ```
 
@@ -97,7 +97,7 @@ Real hosts clone from GitHub. This folder is not a git remote yet, so pick one p
 
 ### Path A — GitHub (real life)
 
-On Windows, create a GitHub repo, push `C:\repos\GrokLessons\docker-lab`, then on **vm2** and **vm3**:
+On Windows, create a GitHub repo, push `C:\repos\docker-lab`, then on **vm2** and **vm3**:
 
 ```bash
 git clone https://github.com/<your-account>/docker-lab.git
@@ -109,8 +109,8 @@ cd docker-lab
 From **PowerShell on Windows**:
 
 ```powershell
-docker cp C:\repos\GrokLessons\docker-lab vm2:/home/lab/docker-lab
-docker cp C:\repos\GrokLessons\docker-lab vm3:/home/lab/docker-lab
+docker cp C:\repos\docker-lab vm2:/home/lab/docker-lab
+docker cp C:\repos\docker-lab vm3:/home/lab/docker-lab
 docker exec vm2 sudo chown -R lab:lab /home/lab/docker-lab
 docker exec vm3 sudo chown -R lab:lab /home/lab/docker-lab
 ```
@@ -217,7 +217,7 @@ Copy the config from Windows, then install nginx on **vm1**.
 From **PowerShell**:
 
 ```powershell
-docker cp C:\repos\GrokLessons\docker-lab\swarm\nginx.conf vm1:/tmp/nginx.conf
+docker cp C:\repos\docker-lab\swarm\nginx.conf vm1:/tmp/nginx.conf
 ```
 
 On **vm1**:
@@ -280,25 +280,19 @@ Wait a few seconds for SSH and Docker on vm2. The manager returns, Swarm still h
 
 ---
 
-## 10. Update the app later
+## 10. Update Web1: GitHub code, manual GHCR push
 
-On each app node that has a git clone:
+Code lives on GitHub. You build the image on Windows and `docker push` it to GHCR. vm2 and vm3 only **pull**. No GitHub Actions.
 
-```bash
-cd ~/docker-lab
-git pull
-docker build -t docker-lab-api:latest ./Api1
-docker build -t docker-lab-web:latest ./Web1
+```text
+Windows: edit → git push → docker build → docker push ghcr.io
+                                              ↓
+                                    vm2/vm3 pull, Swarm rolls web
 ```
 
-On the manager (vm2):
+Image: `ghcr.io/ajadversalo/docker-lab/web`
 
-```bash
-docker service update --force lab_web
-docker service update --force lab_api
-```
-
-If you used `docker cp` instead of git, copy the folder from Windows again, rebuild on both nodes, then force-update.
+We fill in the exact commands as you do each step.
 
 ---
 

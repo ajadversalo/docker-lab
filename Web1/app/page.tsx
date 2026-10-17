@@ -28,7 +28,7 @@ export default async function Home() {
   return (
     <main>
       <p className="eyebrow">Docker lab · {site}</p>
-      <h1>Lessons from {instance}</h1>
+      <h1>Lessons from {instance} (v2)</h1>
       <p className="lede">
         This container is <code>{site}</code>. It loaded static data from{" "}
         <code>{apiLabel}</code> at <code>{apiUrl}</code>. Refresh to see another
