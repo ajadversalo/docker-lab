@@ -212,31 +212,34 @@ Those hit vm2:80 and vm3:80 (the published web port). Refresh the page later thr
 
 nginx is the public door. It load-balances to vm2 and vm3. `localhost` stays up if one app node is off.
 
-Copy the config from Windows, then install nginx on **vm1**.
+vm1 `/tmp` is tmpfs. `docker cp` into `/tmp` never shows up inside the VM. Copy to `/home/lab` instead.
 
 From **PowerShell**:
 
 ```powershell
-docker cp C:\repos\docker-lab\swarm\nginx.conf vm1:/tmp/nginx.conf
+docker cp C:\repos\docker-lab\swarm\nginx.conf vm1:/home/lab/nginx.conf
 ```
 
-On **vm1**:
+On **vm1** (nginx is not in the image; `/etc/nginx` appears after apt):
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y nginx
-sudo cp /tmp/nginx.conf /etc/nginx/nginx.conf
+sudo cp /home/lab/nginx.conf /etc/nginx/nginx.conf
 sudo nginx -t
 sudo systemctl enable --now nginx
-sudo systemctl reload nginx
 ```
+
+`apt` may print `policy-rc.d denied execution of start`. That only skips auto-start during install. `enable --now` starts the service.
+
+`swarm/nginx.conf` is two upstreams and two listeners:
+
+- port 80 → `vm2:80` and `vm3:80` (web, `least_conn`)
+- port 8080 → `vm2:8080` and `vm3:8080` (api)
 
 From vm1 you can `ping vm2` and `ping vm3`. Docker DNS knows those names.
 
-`swarm/nginx.conf` proxies:
-
-- port 80 → `vm2:80` and `vm3:80` (web, least_conn)
-- port 8080 → `vm2:8080` and `vm3:8080` (api)
+API paths are `/health` and `/api/items` (there is no `/weatherforecast`).
 
 ---
 
@@ -280,19 +283,49 @@ Wait a few seconds for SSH and Docker on vm2. The manager returns, Swarm still h
 
 ---
 
-## 10. Update Web1: GitHub code, manual GHCR push
+## 10. Update Web1: GitHub code, manual GHCR, pull on the nodes
 
-Code lives on GitHub. You build the image on Windows and `docker push` it to GHCR. vm2 and vm3 only **pull**. No GitHub Actions.
+Code lives on GitHub. You build on Windows and `docker push` to GHCR. Then you SSH to each app node, **pull**, and on the manager tell Swarm to run the new tag. No GitHub Actions.
 
-```text
-Windows: edit → git push → docker build → docker push ghcr.io
-                                              ↓
-                                    vm2/vm3 pull, Swarm rolls web
+Image: `ghcr.io/ajadversalo/docker-lab/web:v2`
+
+### Already done (this pass)
+
+1. Edit `Web1/app/page.tsx` (heading shows `(v2)`).
+2. `git push` to GitHub.
+3. On Windows: `docker build` and `docker push` `ghcr.io/ajadversalo/docker-lab/web:v2`.
+
+Windows GHCR login does not apply inside the VMs.
+
+### Pull on vm2, then on vm3
+
+SSH **vm2** (`127.0.0.1` port `2223`). If pull returns `denied`, log in on that VM first:
+
+```bash
+echo 'YOUR_PAT' | docker login ghcr.io -u ajadversalo --password-stdin
 ```
 
-Image: `ghcr.io/ajadversalo/docker-lab/web`
+Then:
 
-We fill in the exact commands as you do each step.
+```bash
+docker pull ghcr.io/ajadversalo/docker-lab/web:v2
+docker images | grep docker-lab/web
+```
+
+SSH **vm3** (`127.0.0.1` port `2224`). Same login if needed, then the same `docker pull` and `docker images` check.
+
+Both nodes need the image because one web task runs on each.
+
+### Update the service (vm2 only)
+
+Still on **vm2** (manager):
+
+```bash
+docker service update --image ghcr.io/ajadversalo/docker-lab/web:v2 lab_web
+docker service ps lab_web
+```
+
+Wait until both tasks are `Running`, one on vm2 and one on vm3. Hard-refresh http://localhost:82 and http://localhost:81. Both should show **(v2)**.
 
 ---
 
@@ -341,6 +374,8 @@ sudo systemctl status docker
 | stack 0/2 or 1/2 | Images missing on a node — rebuild on **both** vm2 and vm3 |
 | `no such image` | Deploy used `--resolve-image never` and that node has no tag `docker-lab-api:latest` / `docker-lab-web:latest` |
 | localhost 502 / 504 | Stack not up, or nginx not installed, or both app nodes down |
+| `docker cp` to `/tmp` missing on vm1 | `/tmp` is tmpfs; copy to `/home/lab/nginx.conf` |
+| `/etc/nginx` does not exist | nginx is not installed yet — `apt-get install -y nginx` |
 | `swarm init` already part of a swarm | `docker swarm leave --force` then init/join again |
 | Port 80 already allocated on Windows | Stop local `docker compose` or the single `prod` host |
 
